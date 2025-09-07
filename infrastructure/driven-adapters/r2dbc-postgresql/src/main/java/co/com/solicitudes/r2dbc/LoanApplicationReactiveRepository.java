@@ -1,10 +1,8 @@
 package co.com.solicitudes.r2dbc;
 
-import co.com.solicitudes.model.loanapplication.LoanApplication;
 import co.com.solicitudes.r2dbc.entity.LoanApplicationEntity;
 import org.springframework.data.repository.query.ReactiveQueryByExampleExecutor;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
-import reactor.core.publisher.Mono;
 
 import java.util.UUID;
 
