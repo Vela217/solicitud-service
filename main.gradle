@@ -88,16 +88,50 @@ jacoco {
     reportsDirectory.set(layout.buildDirectory.dir("reports"))
 }
 
-tasks.register('jacocoMergedReport', JacocoReport) {
-    dependsOn = [test, subprojects.jacocoTestReport, pitestReportAggregate]
-    additionalSourceDirs.setFrom files(subprojects.sourceSets.main.allSource.srcDirs)
-    sourceDirectories.setFrom files(subprojects.sourceSets.main.allSource.srcDirs)
-    classDirectories.setFrom files(subprojects.sourceSets.main.output)
-    executionData.setFrom project.fileTree(dir: '.', include: '**/build/jacoco/test.exec')
+tasks.register('jacocoMergedReport', org.gradle.testing.jacoco.tasks.JacocoReport) {
+    // 1) Asegurar ejecución de tests y reportes de TODOS los submódulos
+    dependsOn(subprojects.collect { it.tasks.matching { it.name == 'test' } })
+    dependsOn(subprojects.collect { it.tasks.matching { it.name == 'jacocoTestReport' } })
+    // si existiera :test en el root (poco común), también depender:
+    if (tasks.findByName('test') != null) {
+        dependsOn(tasks.named('test'))
+    }
+    // Opcional: si agregas 'pitestReportAggregate' en el pipeline
+    dependsOn("pitestReportAggregate")
+
+    // 2) Fuentes y clases de todos los submódulos
+    def srcDirs = subprojects.collect { it.file('src/main/java') }
+    additionalSourceDirs.setFrom(files(srcDirs))
+    sourceDirectories.setFrom(files(srcDirs))
+
+    // Clases compiladas (Java/Kotlin si aplica)
+    def classDirsList = subprojects.collect {
+        [
+                it.layout.buildDirectory.dir("classes/java/main").get().asFile,
+                it.layout.buildDirectory.dir("classes/kotlin/main").get().asFile
+        ]
+    }.flatten().findAll { it.exists() }
+
+    // 3) APLICAR EXCLUSIONES AQUÍ (una sola vez, sin doFirst)
+    classDirectories.setFrom(
+            files(classDirsList).asFileTree.matching {
+                exclude rootProject.ext.jacocoExcludes
+            }
+    )
+
+    // 4) Archivos de cobertura (.exec) de cada submódulo
+    executionData.setFrom(
+            subprojects.collect { it.file("${it.buildDir}/jacoco/test.exec") }.findAll { it.exists() }
+    )
+
+    // 5) Reportes (coincide con ruta para Sonar)
     reports {
-        xml.setRequired true
-        csv.setRequired false
-        html.setRequired true
+        xml.required.set(true)
+        html.required.set(true)
+        csv.required.set(false)
+
+        html.outputLocation.set(layout.buildDirectory.dir("reports/jacocoMergedReport/html"))
+        xml.outputLocation.set(layout.buildDirectory.file("reports/jacocoMergedReport/jacocoMergedReport.xml"))
     }
 }
 

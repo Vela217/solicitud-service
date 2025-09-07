@@ -17,6 +17,22 @@ plugins {
 	id 'jacoco'
 }
 
+/** =========================
+*  EXCLUSIONES DE COBERTURA
+        * ========================= */
+ext.jacocoExcludes = [
+        'co/com/solicitudes/api/exception/**',
+        "co/com/solicitudes/MainApplication.class",
+        "co/com/solicitudes/consumer/config/**",
+ 'co/com/solicitudes/api/mapper/**',
+ 'co/com/solicitudes/api/config/**',
+        'co/com/solicitudes/r2dbc/LoanStatusReactiveRepositoryAdapter.class',
+        'co/com/solicitudes/r2dbc/LoanTypeReactiveRepositoryAdapter.class',
+        'co/com/solicitudes/config/UseCasesConfig.class',
+        "co/com/solicitudes/r2dbc/config/PostgresqlConnectionProperties.class",
+ '*/*Application*.class'
+]
+
 sonar {
     def modules = subprojects.projectDir.collect { "${it.toString().replace(project.projectDir.toString() + "/", "")}" }
     properties {
@@ -31,6 +47,8 @@ sonar {
         property "sonar.coverage.jacoco.xmlReportPaths", "build/reports/jacocoMergedReport/jacocoMergedReport.xml"
         property "sonar.pitest.reportPaths", "build/reports/pitest/mutations.xml"
         property "sonar.externalIssuesReportPaths", "build/issues.json"
+        // Exclusiones idénticas a JaCoCo
+        property "sonar.coverage.exclusions", rootProject.ext.jacocoExcludes.join(',')
     }
 }
 

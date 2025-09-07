@@ -1,0 +1,139 @@
+package co.com.solicitudes.api;
+
+import co.com.solicitudes.api.dto.CreateLoanRequestDto;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springdoc.core.annotations.RouterOperation;
+import org.springdoc.core.annotations.RouterOperations;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.reactive.function.server.RouterFunction;
+import org.springframework.web.reactive.function.server.ServerResponse;
+
+import static org.springframework.web.reactive.function.server.RequestPredicates.GET;
+import static org.springframework.web.reactive.function.server.RequestPredicates.POST;
+import static org.springframework.web.reactive.function.server.RouterFunctions.route;
+
+@Configuration
+@Tag(name = "Solicitudes", description = "Gestión de solicitudes de crédito")
+
+public class RouterRest {
+    @Bean
+    @RouterOperations({
+            // POST /api/v1/solicitud
+            @RouterOperation(
+                    path = "/api/v1/solicitud",
+                    method = RequestMethod.POST,
+                    beanClass = Handler.class,
+                    beanMethod = "createLoan",
+                    operation = @Operation(
+                            operationId = "crearSolicitud",
+                            summary = "Crear una solicitud de crédito",
+                            tags = {"Solicitudes"},
+                            requestBody = @RequestBody(
+                                    required = true,
+                                    description = "Datos de la solicitud",
+                                    content = @Content(
+                                            mediaType = "application/json",
+                                            schema = @Schema(implementation = CreateLoanRequestDto.class)
+                                    )
+                            ),
+                            responses = {
+                                    @ApiResponse(
+                                            responseCode = "201",
+                                            description = "Solicitud creada con éxito",
+                                            content = @Content(
+                                                    mediaType = "application/json",
+                                                    schema = @Schema(example = """
+                            {
+                              "statusCode": 201,
+                              "success": true,
+                              "message": "Solicitud creada con éxito",
+                              "data": {
+                                "id": "0ab364cd-d618-4b5b-aa32-a5485e6c6420",
+                                "numberDocument": "12345678",
+                                "termMonths": 12,
+                                "amount": 1200000,
+                                "loanType": {
+                                  "id": 1,
+                                  "name": "Préstamo Personal",
+                                  "minimumAmount": 500000.00,
+                                  "maximumAmount": 20000000.00,
+                                  "interestRate": 12.5,
+                                  "automaticValidation": true
+                                },
+                                "status": {
+                                  "id": 1,
+                                  "name": "Pendiente de revisión",
+                                  "description": "La solicitud fue registrada y está en proceso de revisión"
+                                },
+                                "createdAt": "2025-09-03T07:50:45.188606300Z"
+                              }
+                            }
+                            """)
+                                            )
+                                    ),
+                                    // 400 - validación
+                                    @ApiResponse(
+                                            responseCode = "400",
+                                            description = "Validación de datos",
+                                            content = @Content(
+                                                    mediaType = "application/json",
+                                                    schema = @Schema(example = """
+                            {
+                              "statusCode": 400,
+                              "success": false,
+                              "message": "Validation failed",
+                              "data": [
+                                "numberDocument no debe estar vacío",
+                                "termMonths no debe ser nulo"
+                              ]
+                            }
+                            """)
+                                            )
+                                    ),
+                                    // 400 - regla de negocio
+                                    @ApiResponse(
+                                            responseCode = "400",
+                                            description = "Regla de negocio",
+                                            content = @Content(
+                                                    mediaType = "application/json",
+                                                    schema = @Schema(example = """
+                            {
+                              "statusCode": 400,
+                              "success": false,
+                              "message": "Business rule violation",
+                              "data": "El monto digitado está fuera de los límites para el tipo de crédito seleccionado"
+                            }
+                            """)
+                                            )
+                                    ),
+                                    // 404 - remoto/usuario no encontrado
+                                    @ApiResponse(
+                                            responseCode = "404",
+                                            description = "Recurso no encontrado",
+                                            content = @Content(
+                                                    mediaType = "application/json",
+                                                    schema = @Schema(example = """
+                            {
+                              "statusCode": 404,
+                              "success": false,
+                              "message": "Remote HTTP error",
+                              "data": "Usuario no encontrado"
+                            }
+                            """)
+                                            )
+                                    )
+                            }
+                    )
+            )})
+
+    public RouterFunction<ServerResponse> routerFunction(Handler handler) {
+        return route(POST("/api/v1/solicitud"), handler::createLoan);
+    }
+}
