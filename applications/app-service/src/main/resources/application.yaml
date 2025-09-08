@@ -11,6 +11,10 @@ spring:
       path: "/h2"
   profiles:
     include: null
+security:
+  jwt:
+    public: classpath:public.pem
+    ttl-seconds: 3600
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
