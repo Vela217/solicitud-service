@@ -134,6 +134,7 @@ public class RouterRest {
             )})
 
     public RouterFunction<ServerResponse> routerFunction(Handler handler) {
-        return route(POST("/api/v1/solicitud"), handler::createLoan);
+        return route(POST("/api/v1/solicitud"), handler::createLoan)
+                .andRoute(GET("/api/v1/solicitud"), handler::list);
     }
 }
