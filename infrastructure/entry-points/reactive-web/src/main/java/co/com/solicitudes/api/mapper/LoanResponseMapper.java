@@ -17,6 +17,7 @@ public interface LoanResponseMapper {
     @Mapping(target = "loanType", source = "loanType")
     @Mapping(target = "status", source = "status")
     @Mapping(target = "createdAt", source = "createdAt")
+
     ResponseCreateLoan toResponseDto(LoanApplication loanApplication);
 
     // Mapeo del tipo de préstamo
