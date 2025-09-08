@@ -11,9 +11,21 @@ spring:
       path: "/h2"
   profiles:
     include: null
+security:
+  jwt:
+    public: classpath:public.pem
+    ttl-seconds: 3600
 springdoc:
+  api-docs:
+    path: /v1/api-docs
   swagger-ui:
     path: /swagger-ui.html
+    disable-swagger-default-url: true   # <- evita Petstore
+    url: /v1/api-docs                   # <- carga tu spec por defecto
+    persist-authorization: true
+  packages-to-scan: co.com.solicitudes.api
+  paths-to-match: /api/**
+
 adapters:
   r2dbc:
     host: "localhost"
@@ -60,3 +72,9 @@ resilience4j:
         waitDurationInOpenState: "10s"
 cors:
   allowed-origins: "http://localhost:4200,http://localhost:8080"
+  logging:
+    level:
+      org.springframework.security: DEBUG
+      org.springframework.security.web: DEBUG
+      org.springframework.security.oauth2: DEBUG
+      org.springframework.security.authentication: DEBUG

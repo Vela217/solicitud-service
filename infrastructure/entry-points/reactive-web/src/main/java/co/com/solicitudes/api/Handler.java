@@ -6,10 +6,13 @@ import co.com.solicitudes.api.exception.DtoValidator;
 import co.com.solicitudes.api.mapper.LoanRequestMapper;
 import co.com.solicitudes.api.mapper.LoanResponseMapper;
 import co.com.solicitudes.usecase.registerloanapplication.RegisterLoanApplicationUseCase;
+import exceptions.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.context.ReactiveSecurityContextHolder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import org.springframework.web.reactive.function.server.ServerRequest;
@@ -20,32 +23,67 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 @Slf4j
 public class Handler {
-        private final RegisterLoanApplicationUseCase useCase;
-        private final TransactionalOperator tx;
-        private final DtoValidator validator;
-        private final LoanRequestMapper mapper;
-        private final LoanResponseMapper responseMapper;
+    private final RegisterLoanApplicationUseCase useCase;
+    private final TransactionalOperator tx;
+    private final DtoValidator validator;
+    private final LoanRequestMapper mapper;
+    private final LoanResponseMapper responseMapper;
 
-        public Mono<ServerResponse> createLoan(ServerRequest req) {
-                return req.bodyToMono(CreateLoanRequestDto.class)
-                                .doOnNext(d -> log.info("📥 Solicitud recibida: {}", d))
-                                .flatMap(validator::validate)
-                                .map(mapper::toModel)
-                                .flatMap(d -> useCase.registerLoanApplication(d)
-                                                .as(tx::transactional))
-                                .doOnSuccess(lr -> log.info("💾 Solicitud registrada {}", lr))
-                                .map(responseMapper::toResponseDto)
-                        .flatMap(responseDto -> {
-                                GenericResponseDto<Object> genericResponse = GenericResponseDto.builder()
+    public Mono<ServerResponse> createLoan(ServerRequest req) {
+
+        Mono<JwtAuthenticationToken> auth =
+                ReactiveSecurityContextHolder.getContext()
+                        .map(ctx -> (JwtAuthenticationToken) ctx.getAuthentication());
+
+        return Mono.zip(req.bodyToMono(CreateLoanRequestDto.class), auth)
+                .flatMap(tuple -> {
+                    var dto = tuple.getT1();
+                    var jwt = tuple.getT2().getToken();
+                    log.info("Solicitud recibida: {} token: {}", dto, jwt.getTokenValue());
+
+                    var docFromToken = jwt.getClaimAsString("numberDocument");
+
+                    return validator.validate(dto)
+                            .flatMap(validDto -> {
+                                if (validDto.numberDocument() != null
+                                        && !validDto.numberDocument().equals(docFromToken)) {
+                                    return Mono.error(new BusinessException(
+                                            "No puedes crear solicitudes para otro usuario", 403));
+                                }
+                                var safeDto = new CreateLoanRequestDto(
+                                        docFromToken, validDto.termMonths(), validDto.amount(), validDto.type()
+                                );
+                                return Mono.just(safeDto);
+                            });
+                })
+                .map(mapper::toModel)
+                .flatMap(m -> useCase.registerLoanApplication(m).as(tx::transactional)
+                        .doOnSuccess(lr -> log.info("💾 Solicitud registrada {}", lr))
+                        .map(responseMapper::toResponseDto)
+                        .flatMap(r -> ServerResponse.status(HttpStatus.CREATED)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .bodyValue(GenericResponseDto.builder()
                                         .success(true)
                                         .message("Solicitud creada con éxito")
                                         .statusCode(HttpStatus.CREATED.value())
-                                        .data(responseDto)
-                                        .build();
-
-                                return ServerResponse.status(HttpStatus.CREATED)
-                                        .contentType(MediaType.APPLICATION_JSON)
-                                        .bodyValue(genericResponse);
-                        });
-        }
+                                        .data(r)
+                                        .build())))
+                .onErrorResume(BusinessException.class, ex ->
+                        ServerResponse.status(HttpStatus.FORBIDDEN)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .bodyValue(GenericResponseDto.builder()
+                                        .success(false)
+                                        .message(ex.getMessage())
+                                        .statusCode(HttpStatus.FORBIDDEN.value())
+                                        .data(null)
+                                        .build()))
+                .switchIfEmpty(ServerResponse.status(HttpStatus.UNAUTHORIZED)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(GenericResponseDto.builder()
+                                .success(false)
+                                .message("Token inválido o no provisto")
+                                .statusCode(HttpStatus.UNAUTHORIZED.value())
+                                .data(null)
+                                .build()));
+    }
 }

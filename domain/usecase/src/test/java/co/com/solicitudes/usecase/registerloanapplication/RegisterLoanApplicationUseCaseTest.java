@@ -11,7 +11,6 @@ import co.com.solicitudes.model.loantype.LoanType;
 import co.com.solicitudes.model.loantype.gateways.LoanTypeRepository;
 import exceptions.AmountException;
 import exceptions.LoanStatusNotFoundException;
-import exceptions.LoanTypeNotFoundException;
 import exceptions.UserNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
