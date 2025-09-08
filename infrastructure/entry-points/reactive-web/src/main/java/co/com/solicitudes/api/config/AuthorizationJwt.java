@@ -56,7 +56,11 @@ public class AuthorizationJwt implements WebFluxConfigurer {
                 .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
                 .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
                 .authorizeExchange(reg -> reg
-                        .pathMatchers("/v1/api-docs/**","/swagger-ui.html","/swagger-ui/**").permitAll()
+                        .pathMatchers(
+                                "/v1/api-docs/**",
+                                "/swagger-ui.html",
+                                "/swagger-ui/**",
+                                "/webjars/**"   ).permitAll()
                         .pathMatchers(HttpMethod.POST, "/api/v1/solicitud").hasRole("CLIENTE")
                         .anyExchange().authenticated())
                 .oauth2ResourceServer(oauth -> oauth
