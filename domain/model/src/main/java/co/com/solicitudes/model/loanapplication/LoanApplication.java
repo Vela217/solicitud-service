@@ -19,7 +19,11 @@ import java.util.UUID;
 public class LoanApplication {
     private  UUID id;
     private  String numberDocument;
+    private String email;
+    private String fullName;
     private BigDecimal amount;
+    private BigDecimal baseSalary;
+    private BigDecimal totalMonthlyDebtApprovedRequests;
     private Integer termMonths;
     private LoanType loanType;
     private LoanStatus status;

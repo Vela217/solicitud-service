@@ -42,8 +42,8 @@ public class RestConsumerConfig {
             .baseUrl(url)
             .defaultHeader(HttpHeaders.CONTENT_TYPE, "application/json")
             .clientConnector(getClientHttpConnector())
-                .filter(bearerPropagator())   // 👈 añade el Bearer del SecurityContext
-                .filter(logRequest())         // 👈 logs salientes
+                .filter(bearerPropagator())
+                .filter(logRequest())
                 .filter(logResponse())
                 .build();
     }

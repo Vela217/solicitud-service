@@ -13,8 +13,11 @@ import exceptions.LoanStatusNotFoundException;
 import exceptions.LoanTypeNotFoundException;
 import exceptions.UserNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
+import java.io.ObjectStreamException;
+import java.math.BigDecimal;
 import java.time.Instant;
 
 @RequiredArgsConstructor
@@ -26,23 +29,43 @@ public class RegisterLoanApplicationUseCase {
     private final LoanApplicationRepository loanApplicationRepository;
 
     private static final int PENDING_REVIEW_ID = 1;
-
     public Mono<LoanApplication> registerLoanApplication(LoanApplication draft) {
-        return verifyUserByDocumentNumber(draft)
-                .then(findLoanTypeById(draft))
-                .flatMap(type -> validAmount(draft, type).thenReturn(type))
-                .zipWhen(type -> findPendingReviewLoanStatus())
-                .flatMap(tuple -> {
-                    LoanType type   = tuple.getT1();
-                    LoanStatus stat = tuple.getT2();
-                    LoanApplication toSave = draft.toBuilder()
-                            .loanType(type)
-                            .status(stat)
-                            .createdAt(Instant.now())
-                            .build();
-                    return loanApplicationRepository.save(toSave);
-                });
+        return Mono.zip(
+                verifyUserByDocumentNumber(draft),                                // T1: AuthClient (válido)
+                findLoanTypeById(draft).flatMap(t -> validAmount(draft, t).thenReturn(t)), // T2: LoanType
+                findPendingReviewLoanStatus()                                     // T3: LoanStatus
+        ).flatMap(tuple3 -> {
+            AuthClient client = tuple3.getT1();
+            LoanType   type   = tuple3.getT2();
+            LoanStatus stat   = tuple3.getT3();
+
+            String email = null, name = null, lastName = null, numberDocument = null;
+            BigDecimal baseSalary = null;
+
+            Object data = client.getData();
+            if (data instanceof java.util.Map<?,?> m) {
+                numberDocument = m.get("numberDocument") != null ? String.valueOf(m.get("numberDocument")) : null;
+                email         = (String) m.get("email");
+                name          = (String) m.get("name");
+                lastName      = (String) m.get("lastName");
+                Object bs     = m.get("baseSalary");
+                baseSalary    = bs != null ? new java.math.BigDecimal(String.valueOf(bs)) : null;
+            }
+
+            LoanApplication toSave = draft.toBuilder()
+                    .loanType(type)
+                    .status(stat)
+                    .createdAt(Instant.now())
+                    .numberDocument(numberDocument != null ? numberDocument : draft.getNumberDocument())
+                    .email(email)
+                    .totalMonthlyDebtApprovedRequests(new BigDecimal("1200000"))
+                    .fullName(name+" "+lastName)
+                    .baseSalary(baseSalary)
+                    .build();
+            return loanApplicationRepository.save(toSave);
+        });
     }
+
 
     private Mono<LoanType> findLoanTypeById(LoanApplication loanApplication) {
         Integer typeId = loanApplication.getLoanType() != null ? loanApplication.getLoanType().getId() : null;
@@ -61,13 +84,10 @@ public class RegisterLoanApplicationUseCase {
         );
     }
 
-    private Mono<Void> verifyUserByDocumentNumber(LoanApplication loanApplication) {
+    private Mono<AuthClient> verifyUserByDocumentNumber(LoanApplication loanApplication) {
         String document = String.valueOf(loanApplication.getNumberDocument());
-        return Mono.defer(() ->
-                authClient.getByDocument(document)
-                        .flatMap(this::ensureUserExists)
-                        .then()
-        );
+        return  authClient.getByDocument(document)
+                        .flatMap(this::ensureUserExists);
     }
 
 
