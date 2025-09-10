@@ -10,9 +10,13 @@ import co.com.solicitudes.r2dbc.entity.LoanStatusEntity;
 import co.com.solicitudes.r2dbc.helper.ReactiveAdapterOperations;
 import org.reactivecommons.utils.ObjectMapper;
 import org.springframework.stereotype.Repository;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.Pageable;
 
 @Repository
 public class LoanApplicationReactiveRepositoryAdapter extends
@@ -39,30 +43,47 @@ public class LoanApplicationReactiveRepositoryAdapter extends
                 .flatMap(this::toModelWithFullData);
     }
 
-    private Mono<LoanApplication> toModelWithFullData(LoanApplicationEntity e) {
-        Mono<LoanType> loanTypeMono = e.getLoanTypeId() != null
-                ? loanTypeRepository.findById(e.getLoanTypeId())
-                .map(this::toLoanTypeModel)
-                .switchIfEmpty(Mono.just(LoanType.builder().id(e.getLoanTypeId()).build()))
-                : Mono.just(null);
+    @Override
+    public Flux<LoanApplication> findForReview(Collection<Integer> statuses, int page, int size) {
+        long offset = (long) page * size;
+        Integer[] arr = statuses.toArray(Integer[]::new);
+        return repository.findForReview(arr, size, offset)
+                .flatMap(this::toModelWithFullData);
+    }
 
-        Mono<LoanStatus> loanStatusMono = e.getLoanStatusId() != null
-                ? loanStatusRepository.findById(e.getLoanStatusId())
+    @Override
+    public Mono<Long> countForReview(List<Integer> statusIds) {
+        Integer[] arr = statusIds.toArray(Integer[]::new);
+        return repository.countForReview(arr);
+    }
+
+    private Mono<LoanApplication> toModelWithFullData(LoanApplicationEntity e) {
+        Mono<LoanType> loanTypeMono = Mono.justOrEmpty(e.getLoanTypeId())
+                .flatMap(loanTypeRepository::findById)
+                .map(this::toLoanTypeModel)
+                .defaultIfEmpty(LoanType.builder().id(e.getLoanTypeId()).build());
+
+        Mono<LoanStatus> loanStatusMono = Mono.justOrEmpty(e.getLoanStatusId())
+                .flatMap(loanStatusRepository::findById)
                 .map(this::toLoanStatusModel)
-                .switchIfEmpty(Mono.just(LoanStatus.builder().id(e.getLoanStatusId()).build()))
-                : Mono.just(null);
+                .defaultIfEmpty(LoanStatus.builder().id(e.getLoanStatusId()).build());
 
         return Mono.zip(loanTypeMono, loanStatusMono)
-                .map(tuple -> LoanApplication.builder()
+                .map(t -> LoanApplication.builder()
                         .id(e.getId())
                         .numberDocument(e.getNumberDocument())
                         .amount(e.getAmount())
                         .termMonths(e.getTermMonths())
                         .createdAt(e.getCreatedAt())
-                        .loanType(tuple.getT1())
-                        .status(tuple.getT2())
+                        .loanType(t.getT1())
+                        .status(t.getT2())
+                        .email(e.getEmail())
+                        .fullName(e.getFullName())
+                        .baseSalary(e.getBaseSalary())
+                        .totalMonthlyDebtApprovedRequests(e.getTotalMonthlyDebtApprovedRequests())
                         .build());
     }
+
 
     private LoanType toLoanTypeModel(LoanTypeEntity entity) {
         return LoanType.builder()
@@ -92,7 +113,11 @@ public class LoanApplicationReactiveRepositoryAdapter extends
         e.setCreatedAt(m.getCreatedAt());
         e.setLoanTypeId(m.getLoanType() != null ? m.getLoanType().getId() : null);
         e.setLoanStatusId(m.getStatus() != null ? m.getStatus().getId() : null);
-
+        // 👇 Te faltaban estos
+        e.setEmail(m.getEmail());
+        e.setFullName(m.getFullName());
+        e.setBaseSalary(m.getBaseSalary());
+        e.setTotalMonthlyDebtApprovedRequests(m.getTotalMonthlyDebtApprovedRequests());
         return e;
     }
 
