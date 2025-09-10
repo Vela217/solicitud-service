@@ -131,7 +131,78 @@ public class RouterRest {
                                     )
                             }
                     )
-            )})
+
+            ),
+            // GET /api/v1/solicitud  (listar)
+            @RouterOperation(
+                    path = "/api/v1/solicitud",
+                    method = RequestMethod.GET,
+                    beanClass = Handler.class,
+                    beanMethod = "list",
+                    operation = @Operation(
+                            operationId = "listarSolicitudes",
+                            summary = "Listar solicitudes de crédito (paginado)",
+                            tags = {"Solicitudes"},
+                            parameters = {
+                                    @io.swagger.v3.oas.annotations.Parameter(
+                                            name = "page",
+                                            description = "Número de página (0-based)",
+                                            required = false,
+                                            example = "0",
+                                            in = io.swagger.v3.oas.annotations.enums.ParameterIn.QUERY,
+                                            schema = @Schema(type = "integer", minimum = "0", defaultValue = "0")
+                                    ),
+                                    @io.swagger.v3.oas.annotations.Parameter(
+                                            name = "size",
+                                            description = "Tamaño de página",
+                                            required = false,
+                                            example = "10",
+                                            in = io.swagger.v3.oas.annotations.enums.ParameterIn.QUERY,
+                                            schema = @Schema(type = "integer", minimum = "1", defaultValue = "10")
+                                    )
+                            },
+                            responses = {
+                                    @ApiResponse(
+                                            responseCode = "200",
+                                            description = "Listado generado",
+                                            content = @Content(
+                                                    mediaType = "application/json",
+                                                    schema = @Schema(example =
+                                                            """
+                                                            {
+                                                              "success": true,
+                                                              "message": "Listado generado",
+                                                              "statusCode": 200,
+                                                              "data": {
+                                                                "content": [
+                                                                  {
+                                                                    "id": "a5cd6489-0aca-44e7-9701-0cfe2f87fa53",
+                                                                    "numberDocument": "11111",
+                                                                    "email": "cliente@email.com",
+                                                                    "fullName": "Cliente Tovar",
+                                                                    "amount": 2000000.00,
+                                                                    "baseSalary": 2000000,
+                                                                    "termMonths": 12,
+                                                                    "loanType": { "id": 1, "name": "Personal" },
+                                                                    "status": { "id": 1, "name": "Pendiente de revisión" },
+                                                                    "createdAt": "2025-09-08T19:53:31.789228Z"
+                                                                  }
+                                                                ],
+                                                                "total": 19,
+                                                                "page": 0,
+                                                                "size": 10,
+                                                                "totalPages": 2
+                                                              }
+                                                            }
+                                                            """
+                                                    )
+                                            )
+                                    )
+                            }
+                    )
+
+            )
+    })
 
     public RouterFunction<ServerResponse> routerFunction(Handler handler) {
         return route(POST("/api/v1/solicitud"), handler::createLoan)

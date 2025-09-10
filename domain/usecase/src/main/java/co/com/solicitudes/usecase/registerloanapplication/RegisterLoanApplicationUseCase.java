@@ -52,7 +52,6 @@ public class RegisterLoanApplicationUseCase {
                 baseSalary    = bs != null ? new java.math.BigDecimal(String.valueOf(bs)) : null;
             }
 
-            // Construye el agregado enriquecido (ajusta campos a tu entidad real)
             LoanApplication toSave = draft.toBuilder()
                     .loanType(type)
                     .status(stat)

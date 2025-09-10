@@ -13,8 +13,6 @@ import org.springframework.web.reactive.function.server.ServerResponse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
-import org.springframework.test.context.ContextConfiguration;
 
 class RouterRestTest {
 
@@ -62,7 +60,7 @@ class RouterRestTest {
     void get_onSamePath_isNotFound() {
         // Act & Assert
         webTestClient.get()
-                .uri("/api/v1/solicitud")
+                .uri("/api/v1/sxxxx")
                 .exchange()
                 .expectStatus().isNotFound();
 
@@ -81,5 +79,25 @@ class RouterRestTest {
                 .expectStatus().isNotFound();
 
         verifyNoInteractions(handler);
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/solicitud ⇒ enruta a handler.list y responde 200")
+    void get_list_routesToHandler_andReturns200() {
+        // Arrange
+        when(handler.list(any()))
+                .thenReturn(ServerResponse.ok()
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue("{\"listado\":true}"));
+
+        // Act & Assert
+        webTestClient.get()
+                .uri("/api/v1/solicitud?page=0&size=5")
+                .exchange()
+                .expectStatus().isOk()
+                .expectHeader().contentType(MediaType.APPLICATION_JSON);
+
+        verify(handler).list(any());
+        verifyNoMoreInteractions(handler);
     }
 }
