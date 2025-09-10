@@ -5,6 +5,7 @@ import co.com.solicitudes.api.dto.GenericResponseDto;
 import co.com.solicitudes.api.exception.DtoValidator;
 import co.com.solicitudes.api.mapper.LoanRequestMapper;
 import co.com.solicitudes.api.mapper.LoanResponseMapper;
+import co.com.solicitudes.usecase.listforreview.ListForReviewUseCase;
 import co.com.solicitudes.usecase.registerloanapplication.RegisterLoanApplicationUseCase;
 import exceptions.BusinessException;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,7 @@ public class Handler {
     private final DtoValidator validator;
     private final LoanRequestMapper mapper;
     private final LoanResponseMapper responseMapper;
+    private final ListForReviewUseCase listForReviewUseCase;
 
     public Mono<ServerResponse> createLoan(ServerRequest req) {
 
@@ -86,4 +88,23 @@ public class Handler {
                                 .data(null)
                                 .build()));
     }
+
+    public Mono<ServerResponse> list(ServerRequest req) {
+        int page = Integer.parseInt(req.queryParam("page").orElse("0"));
+        int size = Integer.parseInt(req.queryParam("size").orElse("10"));
+
+        log.info("[review-list] page={} size={}", page, size);
+
+        return listForReviewUseCase.list(page, size)
+                .map(p -> GenericResponseDto.builder()
+                        .success(true)
+                        .message("Listado generado")
+                        .statusCode(200)
+                        .data(p) // PageImpl serializa bien: content, totalElements, totalPages, etc.
+                        .build())
+                .flatMap(dto -> ServerResponse.ok()
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(dto));
+    }
+
 }

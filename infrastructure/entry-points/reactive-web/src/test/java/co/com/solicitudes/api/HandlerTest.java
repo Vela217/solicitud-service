@@ -8,6 +8,7 @@ import co.com.solicitudes.api.mapper.LoanResponseMapper;
 import co.com.solicitudes.model.loanapplication.LoanApplication;
 import co.com.solicitudes.model.loanstatus.LoanStatus;
 import co.com.solicitudes.model.loantype.LoanType;
+import co.com.solicitudes.usecase.listforreview.ListForReviewUseCase;
 import co.com.solicitudes.usecase.registerloanapplication.RegisterLoanApplicationUseCase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -24,10 +25,12 @@ import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import static org.springframework.web.reactive.function.server.RequestPredicates.GET;
 import static org.springframework.web.reactive.function.server.RequestPredicates.POST;
 import static org.springframework.web.reactive.function.server.RouterFunctions.route;
 
@@ -37,6 +40,8 @@ import static org.springframework.web.reactive.function.server.RouterFunctions.r
 class HandlerTest {
 
     @Mock RegisterLoanApplicationUseCase useCase;
+    @Mock
+    ListForReviewUseCase listForReviewUseCase;
     @Mock TransactionalOperator tx;
     @Mock DtoValidator validator;
     @Mock LoanRequestMapper mapper;
@@ -73,8 +78,9 @@ class HandlerTest {
 
     @BeforeEach
     void setUp() {
-        var handler = new Handler(useCase, tx, validator, mapper, responseMapper);
-        router = route(POST("/api/v1/solicitud"), handler::createLoan);
+        var handler = new Handler(useCase, tx, validator, mapper, responseMapper,listForReviewUseCase);
+        router = route(POST("/api/v1/solicitud"), handler::createLoan)
+                .andRoute(GET("/api/v1/solicitud"), handler::list);
     }
 
     @Test
@@ -164,4 +170,47 @@ class HandlerTest {
         verify(validator).validate(any(CreateLoanRequestDto.class));
         verifyNoInteractions(mapper, useCase, responseMapper, tx);
     }
+
+    @Test
+    @DisplayName("GET /api/v1/solicitud/list ⇒ 200 OK con PageResult")
+    void listLoans_shouldReturn200_withPageResult() {
+        var client = clientWithJwt("12345678", "ROLE_ASESOR");
+
+        var loanApp = LoanApplication.builder()
+                .id(UUID.randomUUID())
+                .numberDocument("12345678")
+                .termMonths(12)
+                .amount(new BigDecimal("1500000"))
+                .build();
+
+        // PageResult esperado
+        var pageResult = new ListForReviewUseCase.PageResult<>(
+                List.of(loanApp), // content
+                1L,               // total
+                0,                // page
+                10                // size
+        );
+
+        when(listForReviewUseCase.list(eq(0), eq(10)))
+                .thenReturn(Mono.just(pageResult));
+
+        client.get()
+                .uri("/api/v1/solicitud?page=0&size=10")
+                .exchange()
+                .expectStatus().isOk()
+                .expectHeader().contentType(MediaType.APPLICATION_JSON)
+                .expectBody()
+                .jsonPath("$.success").isEqualTo(true)
+                .jsonPath("$.statusCode").isEqualTo(200)
+                .jsonPath("$.message").isEqualTo("Listado generado")
+                .jsonPath("$.data.content[0].numberDocument").isEqualTo("12345678")
+                .jsonPath("$.data.total").isEqualTo(1)
+                .jsonPath("$.data.page").isEqualTo(0)
+                .jsonPath("$.data.size").isEqualTo(10);
+
+        verify(listForReviewUseCase).list(eq(0), eq(10));
+        verifyNoMoreInteractions(listForReviewUseCase);
+    }
+
+
 }
