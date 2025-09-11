@@ -56,6 +56,7 @@ public class AuthorizationJwt implements WebFluxConfigurer {
                 .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
                 .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
                 .authorizeExchange(reg -> reg
+                        .pathMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
                         .pathMatchers(
                                 "/v1/api-docs/**",
                                 "/swagger-ui.html",

@@ -49,6 +49,7 @@ public class Handler {
                             .flatMap(validDto -> {
                                 if (validDto.numberDocument() != null
                                         && !validDto.numberDocument().equals(docFromToken)) {
+                                    log.info("No puedes crear solicitudes para otro usuario");
                                     return Mono.error(new BusinessException(
                                             "No puedes crear solicitudes para otro usuario", 403));
                                 }
