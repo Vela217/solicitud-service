@@ -1,0 +1,15 @@
+adapters:
+  r2dbc:
+    host: ${SOL_DB_HOST}   # nombre del servicio en compose
+    port: ${SOL_DB_PORT}             # puerto interno del contenedor
+    database: ${SOL_DB_NAME}
+    schema: ${SOL_DB_SCHEMA}
+    username: ${SOL_DB_USER}
+    password: ${SOL_DB_PASSWORD}
+  restconsumer:
+    timeout: ${AUTH_TIMEOUT_MS:5000}
+    url: ${AUTH_BASE_URL:http://auth-service:8080}  # service-to-service por red de Docker
+
+logging:
+  level:
+    org.springframework.security: INFO
