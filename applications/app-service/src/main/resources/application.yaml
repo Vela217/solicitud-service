@@ -1,42 +1,32 @@
 server:
-  port: 8081
+  port: ${APP_PORT:8081}
+
 spring:
   application:
-    name: "solicitudes-service"
+    name: solicitudes-service
   devtools:
     add-properties: false
   h2:
     console:
       enabled: true
-      path: "/h2"
-  profiles:
-    include: null
+      path: /h2
+
 security:
   jwt:
     public: classpath:public.pem
     ttl-seconds: 3600
+
 springdoc:
   api-docs:
     path: /v1/api-docs
   swagger-ui:
     path: /swagger-ui.html
-    disable-swagger-default-url: true   # <- evita Petstore
-    url: /v1/api-docs                   # <- carga tu spec por defecto
+    disable-swagger-default-url: true
+    url: /v1/api-docs
     persist-authorization: true
   packages-to-scan: co.com.solicitudes.api
   paths-to-match: /api/**
 
-adapters:
-  r2dbc:
-    host: "localhost"
-    port: 5432
-    database: "solicitudes"
-    schema: "public"
-    username: "postgres"
-    password: "1189"
-  restconsumer:
-    timeout: 5000
-    url: "http://localhost:8080"
 management:
   health:
     circuitbreakers:
@@ -44,11 +34,12 @@ management:
   endpoints:
     web:
       exposure:
-        include: "health,prometheus"
+        include: health,prometheus
   endpoint:
     health:
       probes:
         enabled: true
+
 resilience4j:
   circuitbreaker:
     instances:
@@ -56,25 +47,20 @@ resilience4j:
         registerHealthIndicator: true
         failureRateThreshold: 50
         slowCallRateThreshold: 50
-        slowCallDurationThreshold: "2s"
+        slowCallDurationThreshold: 2s
         permittedNumberOfCallsInHalfOpenState: 3
         slidingWindowSize: 10
         minimumNumberOfCalls: 10
-        waitDurationInOpenState: "10s"
+        waitDurationInOpenState: 10s
       testPost:
         registerHealthIndicator: true
         failureRateThreshold: 50
         slowCallRateThreshold: 50
-        slowCallDurationThreshold: "2s"
+        slowCallDurationThreshold: 2s
         permittedNumberOfCallsInHalfOpenState: 3
         slidingWindowSize: 10
         minimumNumberOfCalls: 10
-        waitDurationInOpenState: "10s"
+        waitDurationInOpenState: 10s
+
 cors:
   allowed-origins: "http://localhost:4200,http://localhost:8080"
-  logging:
-    level:
-      org.springframework.security: DEBUG
-      org.springframework.security.web: DEBUG
-      org.springframework.security.oauth2: DEBUG
-      org.springframework.security.authentication: DEBUG

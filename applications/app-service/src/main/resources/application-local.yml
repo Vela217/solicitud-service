@@ -1,0 +1,15 @@
+adapters:
+  r2dbc:
+    host: ${postgres_host}
+    port: ${postgres_port}
+    database: ${postgres_db}
+    schema: public
+    username: ${postgres_username}
+    password: ${postgres_password}
+  restconsumer:
+    timeout: 5000
+    url: ${rest_url}
+
+logging:
+  level:
+    org.springframework.security: DEBUG
