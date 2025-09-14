@@ -1,11 +1,14 @@
 package co.com.solicitudes.r2dbc;
 
+import co.com.solicitudes.model.loanapplication.LoanApplication;
 import co.com.solicitudes.model.loanstatus.LoanStatus;
 import co.com.solicitudes.model.loanstatus.gateways.LoanStatusRepository;
+import co.com.solicitudes.r2dbc.entity.LoanApplicationEntity;
 import co.com.solicitudes.r2dbc.entity.LoanStatusEntity;
 import co.com.solicitudes.r2dbc.helper.ReactiveAdapterOperations;
 import org.reactivecommons.utils.ObjectMapper;
 import org.springframework.stereotype.Repository;
+import reactor.core.publisher.Mono;
 
 @Repository
 public class LoanStatusReactiveRepositoryAdapter extends ReactiveAdapterOperations<
@@ -23,4 +26,9 @@ public class LoanStatusReactiveRepositoryAdapter extends ReactiveAdapterOperatio
         super(repository, mapper, d -> mapper.map(d, LoanStatus.class/* change for domain model */));
     }
 
+    @Override
+    public Mono<LoanStatus> findByName(String name) {
+        return repository.findByName(name)
+                .map(entity -> mapper.map(entity, LoanStatus.class));
+    }
 }
