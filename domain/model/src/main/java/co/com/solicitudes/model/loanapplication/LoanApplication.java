@@ -1,11 +1,7 @@
 package co.com.solicitudes.model.loanapplication;
 import co.com.solicitudes.model.loanstatus.LoanStatus;
 import co.com.solicitudes.model.loantype.LoanType;
-import lombok.Builder;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -16,6 +12,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder(toBuilder = true)
+@ToString
 public class LoanApplication {
     private  UUID id;
     private  String numberDocument;
