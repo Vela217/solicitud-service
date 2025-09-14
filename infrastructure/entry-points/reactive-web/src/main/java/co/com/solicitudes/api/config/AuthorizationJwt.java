@@ -64,6 +64,8 @@ public class AuthorizationJwt implements WebFluxConfigurer {
                                 "/webjars/**"   ).permitAll()
                         .pathMatchers(HttpMethod.POST, "/api/v1/solicitud").hasRole("CLIENTE")
                         .pathMatchers(HttpMethod.GET, "/api/v1/solicitud").hasRole("ASESOR")
+                        .pathMatchers(HttpMethod.PUT, "/api/v1/solicitud").hasRole("ASESOR")
+
                         .anyExchange().authenticated())
                 .oauth2ResourceServer(oauth -> oauth
                         .accessDeniedHandler(accessDeniedHandler())
