@@ -57,6 +57,12 @@ public class LoanApplicationReactiveRepositoryAdapter extends
         return repository.countForReview(arr);
     }
 
+    @Override
+    public Mono<LoanApplication> updateStatus(UUID id, int statusId) {
+        return repository.updateStatus(id, statusId)
+                .flatMap(this::toModelWithFullData);
+    }
+
     private Mono<LoanApplication> toModelWithFullData(LoanApplicationEntity e) {
         Mono<LoanType> loanTypeMono = Mono.justOrEmpty(e.getLoanTypeId())
                 .flatMap(loanTypeRepository::findById)
@@ -120,5 +126,8 @@ public class LoanApplicationReactiveRepositoryAdapter extends
         e.setTotalMonthlyDebtApprovedRequests(m.getTotalMonthlyDebtApprovedRequests());
         return e;
     }
-
+    @Override
+    public Mono<LoanApplication> findById(UUID id) {
+        return repository.findById(id).flatMap(this::toModelWithFullData);
+    }
 }
