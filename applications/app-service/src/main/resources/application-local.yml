@@ -1,4 +1,7 @@
 adapters:
+  sqs:
+    region: ${AWS_REGION}
+    queueUrl: ${AWS_URL_QUEUE}
   r2dbc:
     host: ${postgres_host}
     port: ${postgres_port}
@@ -9,7 +12,6 @@ adapters:
   restconsumer:
     timeout: 5000
     url: ${rest_url}
-
 logging:
   level:
     org.springframework.security: DEBUG
