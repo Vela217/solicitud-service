@@ -15,8 +15,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.reactive.function.server.RouterFunction;
 import org.springframework.web.reactive.function.server.ServerResponse;
 
-import static org.springframework.web.reactive.function.server.RequestPredicates.GET;
-import static org.springframework.web.reactive.function.server.RequestPredicates.POST;
+import static org.springframework.web.reactive.function.server.RequestPredicates.*;
 import static org.springframework.web.reactive.function.server.RouterFunctions.route;
 
 @Configuration
@@ -206,6 +205,7 @@ public class RouterRest {
 
     public RouterFunction<ServerResponse> routerFunction(Handler handler) {
         return route(POST("/api/v1/solicitud"), handler::createLoan)
-                .andRoute(GET("/api/v1/solicitud"), handler::list);
+                .andRoute(GET("/api/v1/solicitud"), handler::list)
+                .andRoute(PUT("/api/v1/solicitud"), handler::decide);
     }
 }

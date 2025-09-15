@@ -11,11 +11,13 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.*;
 import org.reactivecommons.utils.ObjectMapper;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -212,4 +214,95 @@ class LoanApplicationReactiveRepositoryAdapterTest {
         verify(loanStatusRepository).findById(1);
         verifyNoMoreInteractions(repository, loanTypeRepository, loanStatusRepository);
     }
+
+    // ==================== 5) findForReview() y countForReview() ====================
+
+    @Test
+    @DisplayName("findForReview(): calcula offset y delega con array correcto; enriquece")
+    void findForReview_delegatesWithOffsetAndMaps() {
+        // page=2, size=10 => offset=20
+        int page = 2, size = 10;
+        Integer[] statuses = {1, 2};
+
+        LoanApplicationEntity e1 = new LoanApplicationEntity();
+        e1.setId(UUID.randomUUID());
+        e1.setNumberDocument("A");
+        e1.setAmount(new BigDecimal("1"));
+        e1.setTermMonths(1);
+        e1.setCreatedAt(Instant.now());
+        e1.setLoanTypeId(1);
+        e1.setLoanStatusId(1);
+
+        LoanApplicationEntity e2 = new LoanApplicationEntity();
+        e2.setId(UUID.randomUUID());
+        e2.setNumberDocument("B");
+        e2.setAmount(new BigDecimal("2"));
+        e2.setTermMonths(2);
+        e2.setCreatedAt(Instant.now());
+        e2.setLoanTypeId(1);
+        e2.setLoanStatusId(1);
+
+        when(repository.findForReview(any(Integer[].class), eq(size), eq(20L)))
+                .thenReturn(Flux.just(e1, e2));
+        when(loanTypeRepository.findById(1)).thenReturn(Mono.just(typeE));
+        when(loanStatusRepository.findById(1)).thenReturn(Mono.just(statusE));
+
+        StepVerifier.create(adapter.findForReview(Arrays.asList(statuses), page, size).collectList())
+                .assertNext(list -> {
+                    assertThat(list).hasSize(2);
+                    assertThat(list.get(0).getNumberDocument()).isEqualTo("A");
+                    assertThat(list.get(1).getNumberDocument()).isEqualTo("B");
+                    assertThat(list.get(0).getLoanType().getName()).isEqualTo("Personal");
+                })
+                .verifyComplete();
+
+        ArgumentCaptor<Integer[]> captor = ArgumentCaptor.forClass(Integer[].class);
+        verify(repository).findForReview(captor.capture(), eq(size), eq(20L));
+        assertThat(captor.getValue()).containsExactly(1, 2);
+    }
+
+    @Test
+    @DisplayName("countForReview(): delega correctamente")
+    void countForReview_delegates() {
+        when(repository.countForReview(any(Integer[].class)))
+                .thenReturn(Mono.just(42L));
+
+        StepVerifier.create(adapter.countForReview(Arrays.asList(1, 2)))
+                .expectNext(42L)
+                .verifyComplete();
+
+        ArgumentCaptor<Integer[]> captor = ArgumentCaptor.forClass(Integer[].class);
+        verify(repository).countForReview(captor.capture());
+        assertThat(captor.getValue()).containsExactly(1, 2);
+    }
+
+// ==================== 6) updateStatus() ====================
+
+    @Test
+    @DisplayName("updateStatus(): mapea y enriquece")
+    void updateStatus_enriched_ok() {
+        UUID id = UUID.randomUUID();
+        LoanApplicationEntity e = new LoanApplicationEntity();
+        e.setId(id);
+        e.setNumberDocument("12345678");
+        e.setAmount(new BigDecimal("1200000"));
+        e.setTermMonths(12);
+        e.setCreatedAt(Instant.now());
+        e.setLoanTypeId(1);
+        e.setLoanStatusId(2);
+
+        when(repository.updateStatus(id, 2)).thenReturn(Mono.just(e));
+        when(loanTypeRepository.findById(1)).thenReturn(Mono.just(typeE));
+        LoanStatusEntity status2 = new LoanStatusEntity();
+        status2.setId(2); status2.setName("Aprobada"); status2.setDescription("OK");
+        when(loanStatusRepository.findById(2)).thenReturn(Mono.just(status2));
+
+        StepVerifier.create(adapter.updateStatus(id, 2))
+                .assertNext(saved -> {
+                    assertThat(saved.getId()).isEqualTo(id);
+                    assertThat(saved.getStatus().getName()).isEqualTo("Aprobada");
+                })
+                .verifyComplete();
+    }
+
 }

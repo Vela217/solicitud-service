@@ -8,6 +8,7 @@ import co.com.solicitudes.api.mapper.LoanResponseMapper;
 import co.com.solicitudes.model.loanapplication.LoanApplication;
 import co.com.solicitudes.model.loanstatus.LoanStatus;
 import co.com.solicitudes.model.loantype.LoanType;
+import co.com.solicitudes.usecase.decideloan.DecideLoanUseCase;
 import co.com.solicitudes.usecase.listforreview.ListForReviewUseCase;
 import co.com.solicitudes.usecase.registerloanapplication.RegisterLoanApplicationUseCase;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,22 +31,21 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
-import static org.springframework.web.reactive.function.server.RequestPredicates.GET;
-import static org.springframework.web.reactive.function.server.RequestPredicates.POST;
+import static org.springframework.web.reactive.function.server.RequestPredicates.*;
 import static org.springframework.web.reactive.function.server.RouterFunctions.route;
-
+import co.com.solicitudes.api.dto.DecisionRequest;
 
 
 @ExtendWith(MockitoExtension.class)
 class HandlerTest {
 
     @Mock RegisterLoanApplicationUseCase useCase;
-    @Mock
-    ListForReviewUseCase listForReviewUseCase;
+    @Mock ListForReviewUseCase listForReviewUseCase;
     @Mock TransactionalOperator tx;
     @Mock DtoValidator validator;
     @Mock LoanRequestMapper mapper;
     @Mock LoanResponseMapper responseMapper;
+    @Mock private DecideLoanUseCase decideLoanUseCase;
 
     private RouterFunction<ServerResponse> router;
 
@@ -78,9 +78,11 @@ class HandlerTest {
 
     @BeforeEach
     void setUp() {
-        var handler = new Handler(useCase, tx, validator, mapper, responseMapper,listForReviewUseCase);
+        var handler = new Handler(useCase, tx, validator, mapper, responseMapper,listForReviewUseCase, decideLoanUseCase);
         router = route(POST("/api/v1/solicitud"), handler::createLoan)
-                .andRoute(GET("/api/v1/solicitud"), handler::list);
+                .andRoute(GET("/api/v1/solicitud"), handler::list)
+                .andRoute(PUT("/api/v1/solicitud"), handler::decide);
+
     }
 
     @Test
@@ -210,6 +212,56 @@ class HandlerTest {
 
         verify(listForReviewUseCase).list(eq(0), eq(10));
         verifyNoMoreInteractions(listForReviewUseCase);
+    }
+
+
+    @Test
+    @DisplayName("POST /api/v1/solicitud/decide ⇒ 200 OK, aplica tx y retorna GenericResponseDto con LoanApplication actualizado")
+    void decide_shouldReturn200_andApplyTransaction() {
+        // Arrange
+        UUID id = UUID.randomUUID();
+        String decision = "Aprobada";
+
+        var current = LoanApplication.builder()
+                .id(id)
+                .numberDocument("12345678")
+                .termMonths(12)
+                .amount(new BigDecimal("1500000"))
+                .status(LoanStatus.builder().id(1).name("PENDIENTE").build())
+                .createdAt(Instant.now())
+                .build();
+
+        var updated = current.toBuilder()
+                .status(LoanStatus.builder().id(2).name("APROBADA").build())
+                .build();
+
+        when(decideLoanUseCase.execute(eq(id), eq(decision))).thenReturn(Mono.just(updated));
+
+        // El handler usa .as(tx::transactional) ⇒ devolvemos el mismo Publisher
+        when(tx.transactional(Mockito.<Mono<?>>any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // Act + Assert
+        WebTestClient.bindToRouterFunction(router)
+                .build()
+                .put()
+                .uri("/api/v1/solicitud")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(new DecisionRequest(decision, id))
+                .exchange()
+                .expectStatus().isOk()
+                .expectHeader().contentType(MediaType.APPLICATION_JSON)
+                .expectBody()
+                .jsonPath("$.success").isEqualTo(true)
+                .jsonPath("$.statusCode").isEqualTo(200)
+                .jsonPath("$.message").isEqualTo("Solicitud actualizada")
+                .jsonPath("$.data.id").isEqualTo(id.toString())
+                .jsonPath("$.data.status.id").isEqualTo(2)
+                .jsonPath("$.data.status.name").isEqualTo("APROBADA");
+
+        // Verificaciones
+        verify(decideLoanUseCase).execute(eq(id), eq(decision));
+        verify(tx).transactional(Mockito.<Mono<?>>any());
+        verifyNoMoreInteractions(decideLoanUseCase, tx);
     }
 
 

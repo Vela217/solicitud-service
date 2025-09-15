@@ -25,7 +25,7 @@ public class DecideLoanUseCase {
 
 
     public Mono<LoanApplication> execute(UUID loanId, String decision) {
-        return repositoryType.findByName(decision)
+        return repositoryType.findByName(decision.toUpperCase())
                 .switchIfEmpty(Mono.error(new LoanStatusNotFoundException("Estado no encontrado", 400)))
                 .zipWhen(s -> repository.findById(loanId)
                         .switchIfEmpty(Mono.error(new LoanApplicationNotFoundException("Solicitud no encontrada", 400))))

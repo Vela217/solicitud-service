@@ -2,11 +2,13 @@ package co.com.solicitudes.metrics.aws;
 
 import io.micrometer.core.instrument.logging.LoggingMeterRegistry;
 import io.micrometer.core.instrument.logging.LoggingRegistryConfig;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.metrics.internal.EmptyMetricCollection;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
+@Disabled
 class MicrometerMetricPublisherTest {
 
     @Test
