@@ -1,10 +1,12 @@
 package co.com.solicitudes.api;
 
 import co.com.solicitudes.api.dto.CreateLoanRequestDto;
+import co.com.solicitudes.api.dto.DecisionRequest;
 import co.com.solicitudes.api.dto.GenericResponseDto;
 import co.com.solicitudes.api.exception.DtoValidator;
 import co.com.solicitudes.api.mapper.LoanRequestMapper;
 import co.com.solicitudes.api.mapper.LoanResponseMapper;
+import co.com.solicitudes.usecase.decideloan.DecideLoanUseCase;
 import co.com.solicitudes.usecase.listforreview.ListForReviewUseCase;
 import co.com.solicitudes.usecase.registerloanapplication.RegisterLoanApplicationUseCase;
 import exceptions.BusinessException;
@@ -30,6 +32,7 @@ public class Handler {
     private final LoanRequestMapper mapper;
     private final LoanResponseMapper responseMapper;
     private final ListForReviewUseCase listForReviewUseCase;
+    private final DecideLoanUseCase decideLoanUseCase;
 
     public Mono<ServerResponse> createLoan(ServerRequest req) {
 
@@ -106,6 +109,22 @@ public class Handler {
                 .flatMap(dto -> ServerResponse.ok()
                         .contentType(MediaType.APPLICATION_JSON)
                         .bodyValue(dto));
+    }
+
+    public Mono<ServerResponse> decide(ServerRequest req) {
+        return req.bodyToMono(DecisionRequest.class)
+                .doOnNext(d -> log.info("Body={}", d))
+                .flatMap(d -> decideLoanUseCase.execute(d.id(), d.decision()).as(tx::transactional)) // si prefieres, aplica el tx aquí
+                .flatMap(updated -> ServerResponse.ok()
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(GenericResponseDto.builder()
+                                .success(true)
+                                .message("Solicitud actualizada")
+                                .statusCode(HttpStatus.OK.value())
+                                .data(updated)
+                                .build()
+                        )
+                );
     }
 
 }

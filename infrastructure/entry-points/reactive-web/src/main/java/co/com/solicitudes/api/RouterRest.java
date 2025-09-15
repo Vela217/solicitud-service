@@ -15,8 +15,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.reactive.function.server.RouterFunction;
 import org.springframework.web.reactive.function.server.ServerResponse;
 
-import static org.springframework.web.reactive.function.server.RequestPredicates.GET;
-import static org.springframework.web.reactive.function.server.RequestPredicates.POST;
+import static org.springframework.web.reactive.function.server.RequestPredicates.*;
 import static org.springframework.web.reactive.function.server.RouterFunctions.route;
 
 @Configuration
@@ -201,11 +200,116 @@ public class RouterRest {
                             }
                     )
 
+            ),
+            // PUT /api/v1/solicitud  (decidir: aprobar/rechazar)
+            @RouterOperation(
+                    path = "/api/v1/solicitud",
+                    method = RequestMethod.PUT,
+                    beanClass = Handler.class,
+                    beanMethod = "decide",
+                    operation = @Operation(
+                            operationId = "decidirSolicitud",
+                            summary = "Decidir (aprobar/rechazar) una solicitud de crédito",
+                            description = "Actualiza el estado de una solicitud existente en función de la decisión enviada.",
+                            tags = {"Solicitudes"},
+                            requestBody = @RequestBody(
+                                    required = true,
+                                    description = "Decisión sobre la solicitud",
+                                    content = @Content(
+                                            mediaType = "application/json",
+                                            schema = @Schema(implementation = co.com.solicitudes.api.dto.DecisionRequest.class),
+                                            examples = {
+                                                    @io.swagger.v3.oas.annotations.media.ExampleObject(
+                                                            name = "Aprobar solicitud",
+                                                            value = """
+                                                        {
+                                                          "decision": "APPROVE",
+                                                          "id": "0ab364cd-d618-4b5b-aa32-a5485e6c6420"
+                                                        }
+                                                        """
+                                                    ),
+                                                    @io.swagger.v3.oas.annotations.media.ExampleObject(
+                                                            name = "Rechazar solicitud",
+                                                            value = """
+                                                        {
+                                                          "decision": "REJECT",
+                                                          "id": "0ab364cd-d618-4b5b-aa32-a5485e6c6420"
+                                                        }
+                                                        """
+                                                    )
+                                            }
+                                    )
+                            ),
+                            responses = {
+                                    @ApiResponse(
+                                            responseCode = "200",
+                                            description = "Solicitud actualizada",
+                                            content = @Content(
+                                                    mediaType = "application/json",
+                                                    schema = @Schema(example = """
+                                                {
+                                                  "success": true,
+                                                  "message": "Solicitud actualizada",
+                                                  "statusCode": 200,
+                                                  "data": {
+                                                    "id": "0ab364cd-d618-4b5b-aa32-a5485e6c6420",
+                                                    "numberDocument": "12345678",
+                                                    "amount": 1200000,
+                                                    "termMonths": 12,
+                                                    "status": {
+                                                      "id": 2,
+                                                      "name": "Aprobada",
+                                                      "description": "La solicitud fue aprobada"
+                                                    },
+                                                    "decidedAt": "2025-09-10T14:22:31.123Z"
+                                                  }
+                                                }
+                                                """)
+                                            )
+                                    ),
+                                    // 400 - validación (payload inválido)
+                                    @ApiResponse(
+                                            responseCode = "400",
+                                            description = "Validación de datos",
+                                            content = @Content(
+                                                    mediaType = "application/json",
+                                                    schema = @Schema(example = """
+                                                {
+                                                  "statusCode": 400,
+                                                  "success": false,
+                                                  "message": "Validation failed",
+                                                  "data": [
+                                                    "decision no debe estar vacío",
+                                                    "id no debe ser nulo"
+                                                  ]
+                                                }
+                                                """)
+                                            )
+                                    ),
+                                    // 404 - solicitud no existe
+                                    @ApiResponse(
+                                            responseCode = "404",
+                                            description = "Recurso no encontrado",
+                                            content = @Content(
+                                                    mediaType = "application/json",
+                                                    schema = @Schema(example = """
+                                                {
+                                                  "statusCode": 404,
+                                                  "success": false,
+                                                  "message": "Solicitud no encontrada",
+                                                  "data": "No existe una solicitud con el id proporcionado"
+                                                }
+                                                """)
+                                            )
+                                    )
+                            }
+                    )
             )
     })
 
     public RouterFunction<ServerResponse> routerFunction(Handler handler) {
         return route(POST("/api/v1/solicitud"), handler::createLoan)
-                .andRoute(GET("/api/v1/solicitud"), handler::list);
+                .andRoute(GET("/api/v1/solicitud"), handler::list)
+                .andRoute(PUT("/api/v1/solicitud"), handler::decide);
     }
 }
