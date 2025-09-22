@@ -18,6 +18,8 @@ import reactor.core.publisher.Mono;
 
 import java.io.ObjectStreamException;
 import java.math.BigDecimal;
+import java.math.MathContext;
+import java.math.RoundingMode;
 import java.time.Instant;
 
 @RequiredArgsConstructor
@@ -27,6 +29,8 @@ public class RegisterLoanApplicationUseCase {
     private final LoanTypeRepository loanTypeRepository;
     private final LoanStatusRepository loanStatusRepository;
     private final LoanApplicationRepository loanApplicationRepository;
+    private static final MathContext MC = MathContext.DECIMAL64;
+    private static final int MONEY_SCALE = 2;
 
     private static final int PENDING_REVIEW_ID = 1;
     public Mono<LoanApplication> registerLoanApplication(LoanApplication draft) {
@@ -58,7 +62,11 @@ public class RegisterLoanApplicationUseCase {
                     .createdAt(Instant.now())
                     .numberDocument(numberDocument != null ? numberDocument : draft.getNumberDocument())
                     .email(email)
-                    .totalMonthlyDebtApprovedRequests(new BigDecimal("1200000"))
+                    .totalMonthlyDebtApprovedRequests(   calculateQuota(
+                            draft.getAmount(),
+                            BigDecimal.valueOf(type.getInterestRate()),
+                            resolveTermMonths(draft)
+                    ))
                     .fullName(name+" "+lastName)
                     .baseSalary(baseSalary)
                     .build();
@@ -108,5 +116,28 @@ public class RegisterLoanApplicationUseCase {
         return Mono.empty();
     }
 
+    private BigDecimal calculateQuota(BigDecimal monto, BigDecimal tasaAnualPct, int meses) {
+        BigDecimal i = tasaAnualPct
+                .divide(BigDecimal.valueOf(100), 10, RoundingMode.HALF_UP)
+                .divide(BigDecimal.valueOf(12), 10, RoundingMode.HALF_UP);
+
+        if (i.compareTo(BigDecimal.ZERO) == 0) {
+            return monto.divide(BigDecimal.valueOf(meses), MONEY_SCALE, RoundingMode.HALF_UP);
+        }
+
+        BigDecimal unoMasI = BigDecimal.ONE.add(i, MC);
+        BigDecimal pow = unoMasI.pow(meses, MC);
+        BigDecimal numerador = monto.multiply(i, MC).multiply(pow, MC);
+        BigDecimal denominador = pow.subtract(BigDecimal.ONE, MC);
+
+        return numerador.divide(denominador, MONEY_SCALE, RoundingMode.HALF_UP);
+    }
+    private int resolveTermMonths(LoanApplication draft) {
+        Integer months = draft.getTermMonths(); // asegúrate de tener este campo en LoanApplication
+        if (months == null || months <= 0) {
+            throw new IllegalArgumentException("El plazo en meses (termMonths) es obligatorio y debe ser > 0.");
+        }
+        return months;
+    }
 }
 
