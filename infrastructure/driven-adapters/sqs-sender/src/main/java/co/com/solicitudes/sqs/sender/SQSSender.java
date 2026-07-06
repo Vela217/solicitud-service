@@ -35,9 +35,22 @@ public class SQSSender  implements LoanDecisionPublisher {
     }
 
     @Override
-    public Mono<String> publish(LoanApplication event) {
-        log.info("event {}", event.toString());
-        return Mono.fromCallable(() -> mapper.writeValueAsString(event))
-                .flatMap(this::send);
+    public Mono<String> publish(LoanApplication app) {
+        log.info("event {}", app);
+        final String dec =  app.getStatus().getName().toUpperCase();
+        final String subject = ("APROBADA".equals(dec) ? "Solicitud APROBADA" :"Solicitud RECHAZADA");
+
+        final String body = ("APROBADA".equals(dec))
+                ? String.format("¡Felicitaciones! Tu solicitud ID: %s fue APROBADA.", app.getId())
+                : String.format("Lo sentimos. Tu solicitud ID: %s fue RECHAZADA.", app.getId());
+
+        return Mono.fromCallable(() -> {
+            var payload = new java.util.HashMap<String, Object>();
+            payload.put("to", app.getEmail());
+            payload.put("subject", subject);
+            payload.put("body", body);
+            return mapper.writeValueAsString(payload);
+        }).flatMap(this::send);
     }
+
 }
